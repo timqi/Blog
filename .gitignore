@@ -1,0 +1,9 @@
+.tags
+.vscode
+*.DS_Store
+.site/node_modules
+.site/db.json
+.site/.deploy_git
+.site/public
+.site/source/i
+.site/source/_posts

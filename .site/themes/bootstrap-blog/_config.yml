@@ -1,0 +1,26 @@
+# Header
+navbar_brand: false
+menu:
+  Home: /
+  Archives: archives
+  Recommend: recommend
+  About: about
+rss: /atom.xml
+
+# Content
+excerpt_link: Read More
+fancybox: true
+
+# Sidebar
+widgets:
+- about
+- recent_posts
+- category
+- archive
+about_widget_content: >
+  <p>Software developer, full stack. Vimer with tmux. Dreamer, passionful & artistic! See more at <a href="/about">About</a></p>
+
+# widget behavior
+archive_type: 'monthly'
+show_count: true
+

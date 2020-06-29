@@ -1,0 +1,38 @@
+name: Deploy Page
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest 
+    
+    steps:
+    - name: Setup timezone
+      uses: zcong1993/setup-timezone@master
+      with:
+        timezone: Asia/Shanghai
+
+    - name: Checkout 
+      uses: actions/checkout@v1
+      
+    - name: Use Node.js 12.14.1
+      uses: actions/setup-node@v1
+      with:
+        node-version: "12.14.1"
+    
+    - name: Setup Hexo env
+      env:
+        ACTION_DEPLOY_KEY: ${{ secrets.ACTION_DEPLOY_KEY }}
+      run: |
+        mkdir -p ~/.ssh/
+        echo "$ACTION_DEPLOY_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
+        git config --global user.name 'qiqi'
+        git config --global user.email 'i@timqi.com'
+  
+    - name: Deploy
+      run: |
+        sh ./scripts/gha_deploy.sh

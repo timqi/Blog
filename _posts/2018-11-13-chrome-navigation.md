@@ -1,0 +1,107 @@
+---
+title: Chrome架构2 - 导航过程
+category: web
+---
+
+本系列文章从内部剖析了 Chrome 浏览器的进程、线程架构设计，各部原理等基础知识，梳理了浏览器是怎样将你的代码变成网站的，解开某个特定技术为什么可以提高性能的疑问。本文是这个系列的第二篇，讲述了 Chome 浏览器从您键入 URL，从 Internet 获取数据并开始展示页面前的过程中发生了什么。我们把这一过程称作 导航。
+<!--more-->
+
+本系列文章共 4 篇，原文发布在 [Google 开发者博客](https://developers.google.com/web/updates/2018/09/inside-browser-part2)，作者 [Mariko Kosaka](https://twitter.com/kosamari) 。文章中涉及`非中文局域网友好链接`请读者自行解决。
+
+让我们看一个常见的操作场景：您在浏览器中键入 URL，然后浏览器从 Internet 获取数据并显示页面。在这篇文章中，我们将重点关注用户请求网站的部分以及浏览器准备呈现页面的部分。
+
+## 从浏览器进程（Browser Process）开始
+
+![上面是浏览器UI，下面是UI、网络和存储线程的浏览器进程图](/i/2018-11-13-browserprocesses.png)
+
+正如在 [第1部分中所述：CPU，GPU，内存和多进程架构](/2018/11/12/chrome-multi-process-architecture/) 所述，选项卡外部的所有内容都由浏览器进程处理。浏览器进程含有多个线程如：**UI 线程**：绘制浏览器的按钮和输入框，**网络线程**：从网络接收和发送数据，**存储线程**：管理对文件的访问控制等。 当您在地址栏中键入 URL 时，您的输入将由浏览器进程的 UI 线程处理。
+
+## 一个简单的导航过程
+
+### 第一步：处理输入
+
+当用户开在地址栏开始输入时，UI 线程首先要判断“这是搜索还是URL？”。 在 Chrome 中，地址栏也是搜索输入框，因此 UI 线程需要解析并决定是将您的输入发送到搜索引擎还是发送到您请求的网站。
+
+![UI 线程判断“这是搜索还是URL？”](/i/2018-11-13-input.png)
+
+### 第二步：开始导航
+
+当用户点击 Enter 时，UI 线程初始化一个获取站点内容的网络请求。将加载进度条显示在选项卡左上角，网络线程则通过适当的协议，如 DNS，为请求建立TLS连接。
+
+![UI 线程告诉网络线程加载 mysite.com](/i/2018-11-13-navstart.png)
+
+此时网络线程可能接收到 HTTP 301 这样的服务器重定向头。在这种情况下，网络线程将重定向告知 UI线程。 然后，将启动另一个 URL 请求。
+
+### 第三步：读取响应
+
+一旦响应主体（有效负载）开始接收，网络线程会在必要时查看网络流的前几个字节。确定响应的 Content-Type 头以说明响应是什么类型的数据，由于它可能丢失或错误，所以在这里完成 [MIME 类型嗅探](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types)。 这就是 [Chromium 源代码](https://cs.chromium.org/chromium/src/net/base/mime_sniffer.cc?sq=package:chromium&dr=CS&l=5) 中注释的 tricky 业务。 您可以阅读注释，以了解不同的浏览器如何处理 Content-Type 字段。
+
+![响应中的 Content-Type 和有效负载](/i/2018-11-13-response.png)
+
+如果响应是HTML文件，那么下一步就是将数据传递给渲染器进程，但如果它是 zip 文件或其他文件，则表示这是个下载请求，需要将数据传递给下载管理器。
+
+![网络线程检查来自合法网站的数据是不是 HTML](/i/2018-11-13-sniff.png)
+
+这也是 [SafeBrowsing](https://safebrowsing.google.com/) 检查发生的时候。 如果域和响应数据似乎与已知的恶意站点匹配，则网络线程会发出警告以显示警告页面。 此外，发生 [跨源读取（CORB）](https://www.chromium.org/Home/chromium-security/corb-for-developers) 时敏感的跨站数据不会进入渲染器进程。
+
+### 第四步：渲染器进程
+
+完成所有检查并且网络线程确信浏览器应该加载所请求的站点后，网络线程会告知 UI 线程数据已准备就绪。 然后，UI 线程告知渲染器进程以进行网页的渲染。
+
+![网络线程告诉UI线程通知渲染器线程](/i/2018-11-13-findrenderer.png)
+
+由于网络请求可能需要几百毫秒才能得到响应，因此这里对这一过程做了优化。 当 UI 线程在第二步向网络线程发送 URL 请求时，它已经知道他们正在导航到哪个站点。 UI线程尝试与网络请求并行地主动查找或启动渲染器进程。 这样，如果一切按预期进行，则当网络线程接收数据时，渲染器进程已处于备用位置。 如果得到重定向并且跨站点，则可能不会使用此备用进程，在这种情况下可能需要不同的进程来处理站点内容。
+
+### 第五步：提交导航
+
+现在数据和渲染器进程已准备就绪，一个 IPC 将从浏览器进程发送到渲染器进程以提交导航。 网络仍然在传输数据，因此渲染器进程可以继续接收HTML数据。 一旦浏览器进程接收到渲染器进程确认提交，导航就完成了，浏览器将进入到文档加载阶段。
+
+此时，地址栏会更新，安全指示器和站点设置 UI 会反映新页面的站点信息。 选项卡的会话历史记录、后退、前进按钮将更新。 为了在关闭选项卡或窗口后恢复选项卡状态，会话历史记录将存储在磁盘上。
+
+![浏览器和渲染器进程之间的IPC](/i/2018-11-13-commit.png)
+
+## 额外步骤：初始加载完成
+
+提交导航后，渲染器进程继续加载资源并呈现页面。 我们将在下一篇文章中详细介绍这个阶段的情况。 一旦渲染器进程“完成”渲染，它就会将一个 IPC 发送回浏览器进程（这是在所有 onload 事件触发了页面中的所有帧并完成执行之后）。 此时，UI 线程会停止选项卡上的加载进度条。
+
+我说“完成”加了引号，是因为客户端 JavaScript 仍然可以加载额外的资源并在此之后呈现新的视图。
+
+![渲染器进程通过 IPC 告诉 UI 线程 loaded](/i/2018-11-13-loaded.png)
+
+## 导航到其他站点
+
+简单的导航完成了！但是如果用户再次将不同的URL放到地址栏会发生什么？浏览器进程会通过相同的步骤导航到不同的站点。但在它做这一点之前，需要检查当前渲染的站点是否监听了 [beforeunload](https://developer.mozilla.org/en-US/docs/Web/Events/beforeunload) 事件。
+
+beforeunload 在您尝试导航或关闭选项卡时 可以创建“确认离开这个网站吗？” 发出警报。 包含 JavaScript 代码的选项卡内的所有内容都由渲染器进程处理，因此浏览器进程必须在新导航请求进入时检查当前渲染器进程。
+
+**警告：不要随意监听 beforeunload。因为在启动导航之前需要执行处理程序。应仅在需要时添加此事件监听，例如需要警告用户他们可能会丢失数据。**
+
+![浏览器进程告诉渲染器进程将要导航到新页面](/i/2018-11-13-beforeunload.png)
+
+如果导航是从渲染器进程启动的（如用户单击链接或客户端 JavaScript 运行 `window.location =“https://newsite.com”`），则渲染器进程首先检查 beforeunload 处理程序。 然后出发与浏览器进程发起导航相同的过程。 唯一的区别是导航请求从渲染器进程发送到浏览器进程。
+
+当新导航进入与当前不同的站点时，将调用单独的渲染器进程来处理新导航，同时保持当前渲染器进程以处理 `unload` 等事件。 有关更多信息，请参阅 [页面生命周期状态概述](https://developers.google.com/web/updates/2018/07/page-lifecycle-api#overview_of_page_lifecycle_states_and_events) 以及如何使用 [Page Lifecycle API](https://developers.google.com/web/updates/2018/07/page-lifecycle-api)
+
+![浏览器进程通过 IPC 启动新的渲染进程以导航到新网站同时让当前渲染进程处理 unload](/i/2018-11-13-unload.png)
+
+## Service Worker 的情况
+
+最近对导航过程的一个变动是引入了 `service worker`。[service worker](https://developers.google.com/web/fundamentals/primers/service-workers/) 是一种在应用程序代码中编写网络代理的方法;允许 Web 开发人员更好地控制本地缓存内容以及何时从网络获取新数据。如果将 service worker 设置为从缓存加载页面，则无需从网络请求数据。
+
+要记住重要的是 service worker 是在渲染器进程中运行的 JavaScript 代码。但是当导航请求进入时，浏览器进程如何知道该站点有服务工作者？
+
+![浏览器进程的网络线程负责查询service worker的有效作用域](/i/2018-11-13-scope_lookup.png)
+
+注册 service worker 时，将保留 service worker 的作用域作为参考（您可以在 [service worker生命周期](https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle) 中查看更多信息）。当导航发生时，网络线程根据注册的 service worker 范围检查 URL，如果为该 URL 注册了 service worker，则 UI 线程找到渲染器进程以执行 service worker 代码。 service worker 可以从缓存加载数据，无需从网络请求数据，或者可以从网络请求新资源。
+
+![在浏览器进程中启动UI线程，启动渲染器进程来处理service worker; 然后，渲染器进程中的工作线程从网络请求数据](/i/2018-11-13-serviceworker.png)
+
+## 导航预加载
+
+可以看到，如果 service worker 最终决定从网络请求数据，则浏览器进程和渲染器进程之间的往返可能会导致延迟。 [导航预加载](https://developers.google.com/web/updates/2017/02/navigation-preload) 是一种通过与 service worker 并行启动加载资源来加速此过程的机制。 它用请求头标记这些请求，允许服务器决定为这些请求响应不同的内容; 例如，只更新数据而不是发送完整的文档。
+
+![浏览器进程中的UI线程启动渲染器进程以处理service worker，同时并行启动网络请求](/i/2018-11-13-navpreload.png)
+
+## 总结
+
+在这篇文章中，我们研究了导航过程中发生的情况以及响应头、客户端 JavaScript 等 Web 应用程序代码如何与浏览器交互的。 了解了浏览器通过网络获取数据的步骤，可以更容易地理解为什么开发导航预载等 API。 在下一篇文章中，我们将深入探讨浏览器如何加载 HTML、CSS、JavaScript 以呈现页面。
