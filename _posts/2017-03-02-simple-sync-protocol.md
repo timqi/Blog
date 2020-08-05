@@ -1,0 +1,157 @@
+---
+title: 一个简单的多端同步协议设计
+category: tech
+---
+
+如今移动互联网时代数据同步是一个广义的话题。用户通常拥有多个设备终端，在这些终端中做到数据一致显然能够更好的增加用户体验，比如在手机购物和网站短能够同步购物车的内容，不同的手机终端之间同步联系人，协作应用中实时了解其他人的状态等等。面对数据同步的问题，业界已有的 [SyncML](https://en.wikipedia.org/wiki/SyncML) 等解决方案，但是此类的开源标准往往都是大而全的设计，追求面面俱到反而效率不足。本文借鉴这一标准设计了简单的多端双向同步可扩展的功能。
+<!--more-->
+
+首先假设一个前提
+
+1. 同一时刻只有一个终端能够同步信息
+2. 每个客户端保存全量数据
+
+## 使用场景举例
+
+- 通讯录同步
+- 客户端设置同步
+- 最近联系人同步
+
+## 表设计
+
+- 客户端
+
+每条记录包含两条同步字段 `status`, `anchor`
+
+status 用来表示记录的状态，含义如下：
+
+| status | 含义 |
+| -- | -- |
+|0|本地新增|
+|-1|标记删除|
+|1|本地更新|
+|9|已同步|
+
+anchor 用来记录服务端同步过来的时间戳（或者是版本号）
+
+- 服务端
+
+`modified` 表示记录在服务端的修改时间
+
+## 双向同步流程设计
+
+### 1. Client 新增两条记录
+
+|id|key|value|status|modified|anchor|
+|--|--|--|--|--|--|
+|1|Foo|Bar|0|1|0|
+|2|Hello|World|0|2|0|
+
+客户端新增两条记录，status 为 0， anchor 为 0
+
+### 2. Client 修改一条记录
+
+|id|key|value|status|modified|anchor|
+|--|---|-----|------|----|---|
+|1|Foo|Bar|0|1|0|
+|2|Hello|World2|1|3|0|
+
+客户端修改一条记录，相应的 status 字段修改为 3
+
+### 3. Client 发送本地更新
+
+```sql
+SELECT * FROM table WHERE status < 9 ORDER BY modified ASC
+```
+
+执行 sql 找出需要更新的数据发向服务端，一次请求可以发出多条数据，如果数据量大则分开发送，在上一个请求结束后发起下一个请求，同步信息中需要包含 anchor 字段：
+
+|id|key|value|status|modified|anchor|
+|--|---|----|-----|-----|---|
+|1|Foo|Bar|0|1|0|
+|2|Hello|World2|1|3|0|
+
+### 4. Server 处理同步消息
+
+服务端收到客户端的请求信息时比较 anchor（也就是上次同步服务端的 modified）和服务端相应记录的 modified。如果相等则继续同步，否则说明客户端在上次更新后还有更新，需要解决冲突后在继续同步；而继续同步的数据则根据记录状态做 ADD UPDATE 或 DELETE 操作。
+
+更新后的服务端数据表：
+
+|id|key|value|modified|
+|---|--|--|---|
+|1|Foo|Bar|3|
+|2|Hello|World2|4|
+
+请求响应的数据如下，此处的 anchor 就是 modified 值：
+
+|id|status|anchor|
+|--|--|--|
+|1|9|3|
+|2|9|4|
+
+### 5. Client 根据响应更新本地记录
+
+此时得到服务端的同步数据后，客户端应判断发出请求时的 modified 与此时本地记录的 modified 是否一致，防止在同步期间本地数据再次更新。
+
+执行 sql 更新本地记录：
+
+```sql
+UPDATE table SET status=9, anchor=?, modified=? WHERE id=? and modified=?
+```
+
+|id|key|value|status|modified|anchor|
+|--|--|---|---|---|---|
+|1|Foo|Bar|9|1|0->3|
+|2|Hello|World2|9|2|0->4|
+
+### 6. Client 向请求 Server 增量同步
+
+因为服务端的 modified 是递增的，本地客户端中保存的 anchor（MAX(anchor)） 的最大值可以认为是客户端中上次同步的时间，如果服务端有比 MAX(anchor) 更大的 modified 记录则需要向客户端同步。
+
+假设另一个客户端在服务器上增加了一条记录并更新了一条记录：
+
+|id|key|value|modified|
+|--|---|---|---|
+|1|Foo|Bar2|3->9|
+|2|Hello|World2|4|
+|3|Java|Bean|0->10|
+
+根据客户端 MAX(anchor)=4，在服务端执行 sql：
+
+```sql
+SELECT * FROM table WHERE modified > 4 ORDER BY modified ASC
+```
+
+获取未同步的数据并发送给客户端。
+
+### 7. Client 处理同步信息
+
+客户端依据增量消息更新本地表，更新时只能处理状态为已同步或者不存在的记录（即 status=9）以防止本地用户记录被修改
+
+|id|key|value|status|modified|anchor|
+|---|--|--|--|---|---|
+|1|Foo|Bar2|9|1->12|9|
+|2|Hello|World2|9|2|4|
+|3|Java|Bean|9|12|10|
+
+### 8. Client 删除记录
+
+客户度需要做逻辑删除，将相应记录的 status 置为 -1
+
+|id|key|value|status|modified|anchor|
+|--|---|---|---|---|--|
+|1|Foo|Bar2|9|1->12|9|
+|2|Hello|World2|-1|15|4|
+|3|Java|Bean|9|12|10|
+
+客户端同步引擎根据 staus < 9 将向服务器发送修改，服务端收到同步信息时将相应记录标记为删除并返回同步成功的响应，客户端在收到同步成功响应时可以将记录物理删除。
+
+### 8. 同步删除记录
+
+客户端收到删除同步信息时可以直接物理删除，所有客户端删除消息同步完成后服务端可以删除该记录
+
+## Client anchor 与 Server modified 不一致
+
+如果用户使用 A 设备做了修改同步过程断开没有完成，同时 B 设备做了修改成功同步了修改信息。此时再使用 A 设备同步时便会产生 anchor 与modified 值不一致的情况，此时服务端应拒绝同步操作并向客户端返回服务端记录内容，以服务端记录为准更新
+
+

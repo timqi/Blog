@@ -1,0 +1,39 @@
+<nav class="navbar navbar-inverse">
+  <div class="container">
+    <div class="navbar-header">
+      <button class="navbar-toggle collapsed" onclick="(function(ele){
+            var ms = document.getElementById('main-menu-navbar').style;
+            if (ms.display === 'block') {
+                ms.display = 'none';
+                ele.style.backgroundColor = 'transparent';
+            } else {
+                ms.display = 'block';
+                ele.style.backgroundColor = '#65A2D6';
+            }})(this)">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <% if (theme.navbar_brand){ %>
+        <a class="navbar-brand" href="<%- config.root %>"><%- theme.navbar_brand %></a>
+      <% } %>
+    </div>
+
+    <div class="collapse navbar-collapse" id="main-menu-navbar">
+      <ul class="nav navbar-nav">
+        <% for (var i in theme.menu){ %>
+          <li><a class="<%= is_current(theme.menu[i]) ? 'active' : '' %>"
+                 href="<%- url_for(theme.menu[i]) %>"><%= i %></a></li>
+        <% } %>
+      </ul>
+
+      <ul class="nav navbar-nav navbar-right">
+        <% if (theme.rss){ %>
+          <li><a href="<%- theme.rss %>" title="RSS Feed">Rss</a></li>
+        <% } %>
+        <li><a href="https://www.google.com/search?q=site%3Awww.timqi.com" title="Search" target="_blank">Search</a></li>
+      </ul>
+    </div>  
+  </div>
+</nav>

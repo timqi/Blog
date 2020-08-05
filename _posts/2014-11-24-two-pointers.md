@@ -1,0 +1,103 @@
+---
+title: 两个指针的妙用
+category: algorithm
+---
+
+使用两个指针可以解决很多编程中遇到的问题，它的主要思想是维护两个标准，一个用来探测是否符合条件标准，另一个用来重新格式化数据满足应用需要，本文以几个简单的例子介绍两个指针的用法。
+<!--more-->
+
+### Remove Nth Node From End of List
+
+> For example (frome leetcode):
+>
+> Given linked list: 1->2->3->4->5, and n = 2.
+>
+> After removing the second node from the end, the linked list becomes 1->2->3->5.
+
+```c++
+/**
+ * Definition for singly-linked list.
+ * struct ListNode {
+ *     int val;
+ *     ListNode *next;
+ *     ListNode(int x) : val(x), next(NULL) {}
+ * };
+ */
+class Solution {
+public:
+    ListNode *removeNthFromEnd(ListNode *head, int n) {
+        ListNode *p= new ListNode(0);
+        p->next = head;
+        head = p;
+        while ((p->next) != NULL) {
+            ListNode *q = p->next;
+            for (int i = 0; i < n; i++) {
+                q = q->next;
+            }
+            if (q != NULL) {
+                p = p->next;
+            } else {
+                p->next = p->next->next;
+                return head->next;
+            }
+        }
+    }
+};
+```
+
+上述 head 为一个虚头，为最后的结果返回做铺垫。q 指针始终比 p 指针提前 n 的节点，当 q 指针指向表末尾时，p 指针正好能够定位到倒数第 n 个节点，将其删除即可。
+
+程序每节循环中 q 都要被 n 次赋值，这在 n 比较大的情况下开销还是很大的，我们可以讲 q 的定位置于循环的外面，只要改动少许代码就能完成转换并且解决问题。
+
+## Remove Duplicates from Sorted Array
+
+>Given a sorted array, remove the duplicates in place such that each element appear only once and return the new length.
+>
+>Do not allocate extra space for another array, you must do this in place with constant memory.
+>
+>For example,
+>Given input array A = [1,1,2],
+>
+>Your function should return length = 2, and A is now [1,2].
+
+``` java
+public static int removeDuplicatesNaive(int[] A) {
+    if (A.length < 2)
+        return A.length;
+
+    int j = 0;
+    int i = 1;
+
+    while (i < A.length) {
+        if (A[i] == A[j]) {
+            i++;
+        } else {
+            j++;
+            A[j] = A[i];
+            i++;
+        }
+    }
+
+    return j + 1;
+}
+```
+
+这是一个典型的使用两个指针的解决方案，i 依次判断数组中的元素是否满足条件，在要求的情况下将元素中心添加进数组，而此时添加的位置是由 j 来决定的。
+
+## Implement strStr()
+
+> Returns the index of the first occurrence of needle in haystack, or -1 if needle is not part of haystack.
+
+``` java
+public int strStr(String haystack, String needle) {
+    for (int i = 0; ; i++) {
+        for (int j = 0; ; j++) {
+            if (j == needle.length()) return i;
+            if (i + j == haystack.length()) return -1;
+            if (needle.charAt(j) != haystack.charAt(i + j)) break;
+        }
+    }
+}
+```
+
+这段程序实现了查找子字符串的功能，有 i 定位判断的位子，如果匹配则有 j 来控制向子字符串前向匹配，如果完全匹配则返回索引位子
