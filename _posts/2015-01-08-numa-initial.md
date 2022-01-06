@@ -1,0 +1,110 @@
+---
+title: 非统一内存访问(NUMA)构建过程
+category: linux
+---
+
+NUMA（Non Uniform Memory Access Architecture）技术可以使众多服务器像单一系统那样运转，同时保留小系统便于编程和管理的优点。基于电子商务应用对内存访问提出的更高的要求，NUMA也向复杂的结构设计提出了挑战。非统一内存访问（NUMA）是一种用于多处理器的电脑记忆体设计，内存访问时间取决于处理器的内存位置。 在NUMA下，处理器访问它自己的本地存储器的速度比非本地存储器（存储器的地方到另一个处理器之间共享的处理器或存储器）快一些。本文就初始化问题做一些分析。
+<!--more-->
+
+## 内核编译 NUMA 选项
+
+> arch/x86/kernel/setup.c  (#L706)
+
+**CONFIG_ACPI_NUMA** 确定此选项后内核会编译 acpi_numa_init() 函数， 获取 numa 支持。从硬件系统的 acpi 表中得到物理硬件的 nodes 信息。
+
+主要的初始化过程在 initmem_init(0, max_pfn); 中。
+
+## initmem_init
+
+> arch/x86/mm/numa_64.c  (#L527)
+
+```c
+527 void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn)
+528 {
+529         int i;
+530
+531         nodes_clear(node_possible_map);
+532         nodes_clear(node_online_map);
+533
+534 #ifdef CONFIG_NUMA_EMU
+535         if (cmdline && !numa_emulation(start_pfn, last_pfn))
+536                 return;
+537         nodes_clear(node_possible_map);
+538         nodes_clear(node_online_map);
+539 #endif
+540
+541 #ifdef CONFIG_ACPI_NUMA
+542         if (!numa_off && !acpi_scan_nodes(start_pfn << PAGE_SHIFT,
+543                                           last_pfn << PAGE_SHIFT))
+544                 return;
+545         nodes_clear(node_possible_map);
+546         nodes_clear(node_online_map);
+547 #endif
+548
+549 #ifdef CONFIG_K8_NUMA
+550         if (!numa_off && !k8_scan_nodes(start_pfn<<PAGE_SHIFT,
+551                                         last_pfn<<PAGE_SHIFT))
+552                 return;
+553         nodes_clear(node_possible_map);
+554         nodes_clear(node_online_map);
+555 #endif
+556         printk(KERN_INFO "%s\n",
+557                numa_off ? "NUMA turned off" : "No NUMA configuration found");
+558
+559         printk(KERN_INFO "Faking a node at %016lx-%016lx\n",
+560                start_pfn << PAGE_SHIFT,
+561                last_pfn << PAGE_SHIFT);
+562         /* setup dummy node covering all memory */
+563         memnode_shift = 63;
+564         memnodemap = memnode.embedded_map;
+565         memnodemap[0] = 0;
+566         node_set_online(0);
+567         node_set(0, node_possible_map);
+568         for (i = 0; i < nr_cpu_ids; i++)
+569                 numa_set_node(i, 0);
+570         e820_register_active_regions(0, start_pfn, last_pfn);
+571         setup_node_bootmem(0, start_pfn << PAGE_SHIFT, last_pfn << PAGE_SHIFT);
+572 }
+573
+574 unsigned long __init numa_free_all_bootmem(void)
+575 {
+576         unsigned long pages = 0;
+577         int i;
+578
+579         for_each_online_node(i)
+580                 pages += free_all_bootmem_node(NODE_DATA(i));
+581
+582         return pages;
+583 }
+584
+585 static __init int numa_setup(char *opt)
+586 {
+587         if (!opt)
+588                 return -EINVAL;
+589         if (!strncmp(opt, "off", 3))
+590                 numa_off = 1;
+591 #ifdef CONFIG_NUMA_EMU
+592         if (!strncmp(opt, "fake=", 5))
+593                 cmdline = opt + 5;
+594 #endif
+595 #ifdef CONFIG_ACPI_NUMA
+596         if (!strncmp(opt, "noacpi", 6))
+597                 acpi_numa = -1;
+598 #endif
+599         return 0;
+600 }
+```
+
+若系统开启了 CONFIG_NUMA_EMU 选项，并且在命令行中传入 **numa=fake=?** 参数对 numa 架构进行模拟，那么系统执行 **numa_emulation(start_pfn, last_pfn))** (arch/x86/mm/numa_64.c#L418)。根据命令行传入的参数数据对 node 进行设置，成功返回后退出 initmem_init();
+
+nuam 启动参数设置参看： [http://linux-hacks.blogspot.com/2009/07/fake-numa-nodes-in-linux.html](http://linux-hacks.blogspot.com/2009/07/fake-numa-nodes-in-linux.html)
+
+#### -------------------------
+
+然后若是系统开启了 CONFIG_ACPI_NUMA 选项，并且系统硬件架构中支持 numa (即变量 acpi_numa 不小于零)。系统执行 **acpi_scan_nodes(start_pfn << PAGE_SHIFT, last_pfn << PAGE_SHIFT)**(arch/x86/mm/srat_64.c#L342)。函数中首先根据软件设置的内存对实际物理内存进行裁剪 (cutoff_node(i, start, end)函数)，然后构建出节点信息（存于 node_data[] 中），成功返回后则退出 initmem_init();
+
+#### -------------------------
+
+暂不讨论 K8 模式
+
+如果上述的 EMULATION 与实际的 ACPI 设定中均不支持 numa，那么系统将关闭 NUMA 并创建出一个虚拟 node，并认为系统中的所有内存均属于这个 node 上。

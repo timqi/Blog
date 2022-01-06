@@ -1,0 +1,79 @@
+---
+title: Fragment 间的通信
+category: android
+---
+
+由 Fragment 来控制 app 的界面相比 Activity 有很多优势，比如可以在运行时调整系统界面，而不是固定的一个模型，另外同一 Fragment 可以方便的在不同项目、不同 Activity 中实现重用，解耦。
+<!--more-->
+
+**所有的 Fragment 之间都通过他们所关联的 Activity 来进行通信**
+
+## 接口（interface）
+
+在 Fragment 中定义一个接口，由 Activity 来实现（Implement）这个接口。然后在 Fragment 的 `onAttach()` 生命周期中创建接口实例，需要进行消息传递时并调用接口实例中的抽象方法即可。
+
+下面是一个 Fragment 类的例子：
+
+``` java
+public class ExampleFragment extends ListFragment {
+    OnExampleFragmentSelectedListener mCallback;
+
+    // Container Activity must implement this interface
+    public interface OnExampleFragmentSelectedListener {
+        public void onOurItemSelected(int position);
+    }
+
+    @Override
+    public void onAttach(Activity activity) {
+        super.onAttach(activity);
+
+        // This makes sure that the container activity has implemented
+        // the callback interface. If not, it throws an exception
+        try {
+            mCallback = (OnExampleFragmentSelectedListener) activity;
+        } catch (ClassCastException e) {
+            throw new ClassCastException(activity.toString()
+                    + " must implement OnExampleFragmentSelectedListener");
+        }
+    }
+
+    @Override
+    public void onListItemClick(ListView l, View v, int position, long id) {
+        // Send the event to the host activity
+        mCallback.onOurItemSelected(position);
+    }
+
+    ...
+}
+```
+
+## 接口实现与消息传递
+
+实现接口中对应的方法即可轻松的完成由 Activity 中的子 Fragment 传递出的消息对应的事件。比如例子中我们点击了 Fragment 中的一个元素，那么系统会执行 mCallback.onOurItemSelected ，这个方法是在 Activity 中实现完成的，我们可以在方法中创建一个新 Fragment 来显示对应的 article：
+
+``` java
+public static class MainActivity extends Activity
+        implements ExampleFragment.OnExampleFragmentSelectedListener{
+    ...
+
+    public void onOurItemSelected(int position) {
+        // The user selected the Item of from the ExampleFragment
+        // Do something here to display Item, such as an article
+
+        // Create fragment and give it an argument for the selected article
+        ArticleFragment newFragment = new ArticleFragment();
+        Bundle args = new Bundle();
+        args.putInt(ArticleFragment.ARG_POSITION, position);
+        newFragment.setArguments(args);
+
+        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+
+        // Replace whatever is in the fragment_container view with this fragment,
+        // and add the transaction to the back stack so the user can navigate back
+        transaction.replace(R.id.fragment_container, newFragment);
+        transaction.addToBackStack(null);
+
+        // Commit the transaction
+        transaction.commit();
+}
+```

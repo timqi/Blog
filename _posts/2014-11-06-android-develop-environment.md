@@ -1,0 +1,51 @@
+---
+title: Android 开发环境搭建问题汇总
+category: android
+---
+
+这篇文章主要记录一下 android 开发环境搭建过程中的一些问题及处理方法和相关注意事项
+<!--more-->
+
+**下载：**
+
+- [jdk](http://www.oracle.com/technetwork/java/javase/downloads/index.html), [Ubuntu下配置jdk方法](http://www.wikihow.com/Install-Oracle-Java-JDK-on-Ubuntu-Linux)
+- [Eclipse](https://www.eclipse.org/downloads/)
+- [Android SDK](https://developer.android.com/sdk/index.html) 页面最下面选择平台
+
+配置好相应的 Java 环境
+
+## issues：
+
+1. eclipse 中没有 android SDK and AVD Manager 选项
+
+	Eclipse 中：<br/>
+	window -> Customize Perspective -> Command Groups availability-> 把 android SDK and AVD Manager 选项勾上 -> ok
+
+2. 64 位 Linux 系统下 adb 或者emulator 报错：No such file or directory
+
+	# 安装 32 位支持环境：<br/>
+	sudo apt-get install lib32ncurses5 lib32stdc++6 zlib1g:i386 libc6-i386
+
+3. Android 工程中报错：R cannot be resolved to a variable
+
+	删除 gen 和 bin，或 clean 工程后，gen 均为自动生成 R.java 文件
+
+4. 国内网络环境下更新 sdk 代理
+
+	tools -> options:<br/>
+	HTTP Proxy Server: **mirrors.neusoft.edu.cn**<br/>
+	HTTP Proxy Port:   **80**
+
+5. 没有 DDMS 的相关视图界面
+
+	window -> open perspective -> other , 在弹出的对话框中选择 DDMS
+
+6. 调整 logcat 字体
+
+	window -> preferences -> 左边选择 Android -> logcat 右上角点击 change 按钮
+
+### Android Studio
+
+1. 取消第一次运行下载sdk
+
+	bin/idea.properties 最后添加一行：disable.android.first.run=true

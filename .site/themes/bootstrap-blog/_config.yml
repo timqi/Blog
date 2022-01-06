@@ -1,0 +1,25 @@
+# Header
+navbar_brand: false
+menu:
+  Home: /
+  Archives: archives
+  Recommend: recommend
+rss: /atom.xml
+
+# Content
+excerpt_link: Read More
+fancybox: true
+
+# Sidebar
+widgets:
+- about
+- recent_posts
+- category
+- archive
+about_widget_content: >
+  <p>Software Developer.<br>Email i@timqi.com</p>
+
+# widget behavior
+archive_type: 'monthly'
+show_count: true
+

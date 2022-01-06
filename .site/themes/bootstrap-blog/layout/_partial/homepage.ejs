@@ -1,0 +1,22 @@
+<article id="<%= post.layout %>-<%= post.slug %>" class="article article-type-<%= post.layout %>" itemscope itemprop="blogPost">
+  <header class="article-header">
+    <%- partial('post/title', {class_name: 'article-title'}) %>
+  </header>
+  <div class="article-meta" style="margin-bottom:6px">
+    <%- partial('post/date', {class_name: 'article-date', date_format: "YYYY/MM/DD"}) %>
+    <% if (post.author){ %><div class="article-author"><%= post.author %></div><% } %>
+    <%- partial('post/category') %>
+  </div>
+  <div class="article-inner">
+    <div class="article-entry" itemprop="articleBody">
+        <% var br = post.content.indexOf('</p>') %>
+        <% if (post.excerpt) { %>
+            <%- post.excerpt %>
+        <% } else if (br < 0) { %>
+            <%- post.content %>
+        <% } else { %>
+            <%- post.content.substring(0, br + 4) %>
+        <% } %>
+    </div>
+  </div>
+</article>
