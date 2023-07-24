@@ -8,7 +8,7 @@
 
 White paper: [https://drive.google.com/file/d/18I9GPebWqgpvusI1kMnAB9nayBbL-1qN/view](https://drive.google.com/file/d/18I9GPebWqgpvusI1kMnAB9nayBbL-1qN/view)
 
-主网没 5 分钟 200 个块，每 10 分钟 400 个块。通常交易在 1.5-7 分钟内可以确认，15-20 分钟内广播到全网。Spacemesh 保障全网不超过 $\frac{1}{3}$ 存储作恶的情况下可以安全工作。
+主网每 5 分钟 200 个块，每 10 分钟 400 个块。通常交易在 1.5-7 分钟内可以确认，15-20 分钟内广播到全网。Spacemesh 保障全网不超过 $\frac{1}{3}$ 存储作恶的情况下可以安全工作。
 
 主网参数：
 ```
@@ -30,8 +30,12 @@ GenesisLayers: 8064，即前两个 epoch
 - post: 批盘工具 [https://github.com/spacemeshos/post/blob/develop/cmd/postcli/README.md](https://github.com/spacemeshos/post/blob/develop/cmd/postcli/README.md)
 - 硬盘性能测试：[https://github.com/spacemeshos/post-rs](https://github.com/spacemeshos/post-rs) d70ef76f
 
-
 # How to make blocks
+
+1. 注册 ATX，根据不同的 Space-Time，ATX 上有不同的收益权重
+2. 使用 ATX，节点可以发布自己的 blocks 或者参与 Hare 投票
+4. 由 Hare 协议简单确定块是否有效
+5. 由 Tortoise 协议最终确定块是否有效
 
 Spacemesh 中使用 `mesh` 而不是 chain 来描述账单结果，mesh 中有一系列 Layer，每个 Layer 中有很多块。每个 Layer 中的 blocks 是按 hash 随机排序的，每个 blocks 中的 tx 也是按 hash 随机排序的。每个 tx 可以出现在不同的 blocks 中，出现该 tx 的第一个 block 被视为有效的 block。
 
@@ -43,7 +47,7 @@ Spacemesh 中使用 `mesh` 而不是 chain 来描述账单结果，mesh 中有�
 - PoET(Proof of Elapsed Time): 用来确保矿工连续不间断的工作了多长时间的证明，PoET 需要查询相应的 Server，不是由矿工在本地运行的。PoET 是 NiPoST 的一部分
 - NiPoST(Non-interactive Proof of Space Time): 用来证明矿工消耗了一定的存储空间，并且连续运行的一段时间。矿工每次提交矿的时候需要附上 NiPoST 证明，并且需要持续提交证明
 
-- VDF: Verifiable Delay Function
+- VDF: Verifiable Delay Function, Proof of Sequential Work
 - VRF: Verifiable Random Function
 
 > Unlike a PoST, a NIPoST has only a single phase. Given an id, a space parameter S , a duration D and a challenge ch, a NIPoST is a single message that convinces a verifier that (1) the prover expended S · D space-time after learning the challenge ch. (2) the prover did not know the NIPoST result until D time after the prover learned ch.
@@ -67,7 +71,11 @@ ATX 中包含如下信息：
 - View pointers:
 - Signature: 
 
-# How to verify time space
+# How to calc reward
+
+- NiPoST 证明是如何反应存储和时间大小的
+- 怎样做难度调整
+- 不同的难度是怎样反馈到用户最终收益上的
 
 # PoET
 
@@ -88,12 +96,24 @@ Spacemesh electron app 中的参数设置：[https://github.com/spacemeshos/smap
 
 节点启动参数配置：[https://github.com/spacemeshos/smapp/blob/develop/desktop/NodeManager.ts#L365](https://github.com/spacemeshos/smapp/blob/develop/desktop/NodeManager.ts#L365)
 
+开始挖矿由 StartSmeshing RPC 入口开始，走到 activation 模块，其中在 node 中初始化的 atxBuilder 起了重要作用，atxBuilder 的初始化调用了许多 activation 模块的功能：PostSetupManager 负责检查批盘, PostSetupManager.StartSession 是挖矿前批盘检查的入口，mgr.init.Initialize(ctx) 调用了 spacemeshos/post 仓库的批盘方法；syncer.syncer.go 负责同步区块链信息并检查 atx 的有效性。
+
 开始挖矿的入口，开始挖矿前会检查 post 数据是否有效，如果无效的话会重新生成: [https://github.com/spacemeshos/go-spacemesh/blob/1766164895d69061457b03d0223f5c1438fbcacf/api/grpcserver/smesher_service.go#L49](https://github.com/spacemeshos/go-spacemesh/blob/1766164895d69061457b03d0223f5c1438fbcacf/api/grpcserver/smesher_service.go#L49)。
 
 具体实现开始挖矿的类，activation.Builder：[https://github.com/spacemeshos/go-spacemesh/blob/1766164895d69061457b03d0223f5c1438fbcacf/activation/activation.go#L61](https://github.com/spacemeshos/go-spacemesh/blob/1766164895d69061457b03d0223f5c1438fbcacf/activation/activation.go#L61)
 
 StartSmeshing: [https://github.com/spacemeshos/go-spacemesh/blob/1766164895d69061457b03d0223f5c1438fbcacf/activation/activation.go#L188](https://github.com/spacemeshos/go-spacemesh/blob/1766164895d69061457b03d0223f5c1438fbcacf/activation/activation.go#L188)
 
+主循环之前，生成 POST 证明：[https://github.com/spacemeshos/go-spacemesh/blob/develop/activation/activation.go#L312C30-L312C30](https://github.com/spacemeshos/go-spacemesh/blob/develop/activation/activation.go#L312C30-L312C30)
+
 Smeshing 主循环, activation.go:Builder:loop：[https://github.com/spacemeshos/go-spacemesh/blob/1766164895d69061457b03d0223f5c1438fbcacf/activation/activation.go#L357](https://github.com/spacemeshos/go-spacemesh/blob/1766164895d69061457b03d0223f5c1438fbcacf/activation/activation.go#L357)
 
 POST参数设置：[https://github.com/spacemeshos/go-spacemesh/blob/1766164895d69061457b03d0223f5c1438fbcacf/activation/post.go#L28](https://github.com/spacemeshos/go-spacemesh/blob/1766164895d69061457b03d0223f5c1438fbcacf/activation/post.go#L28)
+
+Hare 相关：
+
+主要逻辑在 hare/hare.go 文件中，hare.Start 方法为主要入口，启动了 layer 切换的 tickLoop, 非法投票的 malfeasanceLoop ,以及 outputCollectionLoop 监听所有 consensus process 的消息
+
+切换 layer 时触发的逻辑：[https://github.com/spacemeshos/go-spacemesh/blob/develop/hare/hare.go#L318](https://github.com/spacemeshos/go-spacemesh/blob/develop/hare/hare.go#L320)；设置 layerid，设置 broker 开始在新的 layer 接收消息，获取所有的 goodProposals 并在设置为新的出块投票参数，创建 consensusprocess 并启动
+
+consensus process 的主循环：[https://github.com/spacemeshos/go-spacemesh/blob/develop/hare/algorithm.go#L276](https://github.com/spacemeshos/go-spacemesh/blob/develop/hare/algorithm.go#L276)
