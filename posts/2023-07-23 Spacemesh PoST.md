@@ -1,6 +1,5 @@
 - tags: 
 - date: 2023-07-23
-- draft: true
 
 # Spacemesh PoST
 
