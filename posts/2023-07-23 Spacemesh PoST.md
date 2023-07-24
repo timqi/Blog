@@ -1,4 +1,4 @@
-- tags: 
+- tags: blockchain
 - date: 2023-07-23
 
 # Spacemesh PoST
@@ -116,3 +116,7 @@ Hare 相关：
 切换 layer 时触发的逻辑：[https://github.com/spacemeshos/go-spacemesh/blob/develop/hare/hare.go#L318](https://github.com/spacemeshos/go-spacemesh/blob/develop/hare/hare.go#L320)；设置 layerid，设置 broker 开始在新的 layer 接收消息，获取所有的 goodProposals 并在设置为新的出块投票参数，创建 consensusprocess 并启动
 
 consensus process 的主循环：[https://github.com/spacemeshos/go-spacemesh/blob/develop/hare/algorithm.go#L276](https://github.com/spacemeshos/go-spacemesh/blob/develop/hare/algorithm.go#L276)
+
+根据 proposals 中的 atx 计算 weight,投票的weight 由 atx中的参数确定: [https://github.com/spacemeshos/go-spacemesh/blob/develop/blocks/utils.go#L207](https://github.com/spacemeshos/go-spacemesh/blob/develop/blocks/utils.go#L207)
+
+系统预言机决定当前节点能不能参与proposals：[https://github.com/spacemeshos/go-spacemesh/blob/develop/hare/eligibility/oracle.go#L466](https://github.com/spacemeshos/go-spacemesh/blob/develop/hare/eligibility/oracle.go#L466)
