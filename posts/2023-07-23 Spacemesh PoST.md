@@ -1,4 +1,4 @@
-- tags: [blockchain](/tags.md#blockchain))
+- tags: [blockchain](/tags.md#blockchain)
 - date: 2023-07-23
 
 # Spacemesh PoST
