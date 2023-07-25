@@ -1,4 +1,4 @@
-[blockchain(17)](/tags.md#blockchain) [tech(20)](/tags.md#tech) [web(9)](/tags.md#web) [linux(9)](/tags.md#linux) [other(18)](/tags.md#other) [algorithm(6)](/tags.md#algorithm) [golang(5)](/tags.md#golang) [python(14)](/tags.md#python) [java(17)](/tags.md#java) [android(27)](/tags.md#android)
+[blockchain(18)](/tags.md#blockchain) [tech(20)](/tags.md#tech) [web(9)](/tags.md#web) [linux(9)](/tags.md#linux) [other(18)](/tags.md#other) [algorithm(6)](/tags.md#algorithm) [golang(5)](/tags.md#golang) [python(14)](/tags.md#python) [java(17)](/tags.md#java) [android(27)](/tags.md#android)
 
 ### *Posts, since 2013*
 
