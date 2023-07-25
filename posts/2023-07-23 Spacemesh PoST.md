@@ -64,8 +64,6 @@ Spacemesh 中使用 `mesh` 而不是 chain 来描述账单结果，mesh 中有�
 - 如果当前layer为t，块对应的layer为i，如果 t-i < hdist，那么有效性取决与 Hare 协议；如果 t-i > hdist，那么有效性取决于 Tortoise 协议
 - 每个 Node 在每个节点最多有一个有效的块，如果产生了多个有效块那么只有第一个是有效的
 
-
-
 ## ATX
 
 ATX(Activation Transaction): 一种包含了 NiPoST 证明的特殊交易，每个矿工需要在每个 epoch 中发布 ATX。如果矿工有多个存储单元，则被认为是多个矿工，并且每个矿工有一个存储单元
