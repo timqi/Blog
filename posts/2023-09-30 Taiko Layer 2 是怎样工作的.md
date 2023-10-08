@@ -1,6 +1,5 @@
 -  tags: [blockchain](/tags.md#blockchain)
 - date: 2023-09-30
-- draft: true
 
 # Taiko Layer 2 是怎样工作的
 

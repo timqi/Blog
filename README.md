@@ -4,6 +4,7 @@
 
 
 
+- [Taiko Layer 2 是怎样工作的](/posts/2023-09-30%20Taiko%20Layer%202%20%E6%98%AF%E6%80%8E%E6%A0%B7%E5%B7%A5%E4%BD%9C%E7%9A%84.md) *Sep 30, 2023*
 - [Spacemesh PoST](/posts/2023-07-23%20Spacemesh%20PoST.md) *Jul 23, 2023*
 - [Account Abstraction in StarkNet](/posts/2023-04-04%20Account%20Abstraction%20in%20StarkNet.md) *Apr 04, 2023*
 - [MPC, Smart Contract Wallet 与 EIP-4337](/posts/2023-03-20%20MPC%2C%20Smart%20Contract%20Wallet%20%E4%B8%8E%20EIP-4337.md) *Mar 20, 2023*
