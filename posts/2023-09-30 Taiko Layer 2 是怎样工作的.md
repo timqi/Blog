@@ -9,7 +9,7 @@ zk项目现状：[https://mirror.xyz/aoraki-labs.eth/19n2rbhplGveGF1djiGDPsPZ_LW
 
 奖励计算框架：[https://docs.zkpool.io/products/introduction](https://docs.zkpool.io/products/introduction)。不同项目有不同的代币，并且同时有不同的奖励惩罚机制，作为pool应该抽象并封装完这些逻辑，暴露给用户的只是收益结算，具体的stake，bond等逻辑由矿池完成。矿池通过费率cover惩罚损失。
 
-Taiko 是使用零知识证明的以太坊二层扩展网络。Taiko 本身运行了 patched geth 作为二层网络的主要业务逻辑，二层和以太坊主网上部署了不同的智能合约来处理二层网络的 Rollup。[https://github.com/taikoxyz/taiko-mono]() 网络部署通常分为几步：
+Taiko 是使用零知识证明的以太坊二层扩展网络。Taiko 本身运行了 patched geth 作为二层网络的主要业务逻辑，二层和以太坊主网上部署了不同的智能合约来处理二层网络的 Rollup。[https://github.com/taikoxyz/taiko-mono](https://github.com/taikoxyz/taiko-mono) 网络部署通常分为几步：
 
 1. 生成 genesis.json 数据，包含了在 L2 上的智能合约数据以及产生创世区块所需要的数据
 2. L2 成功运行以后在以太主网部署相关合约，需要用到 L2 的一些原数据，如 Rollup 合约部署地址，创世块哈希等
@@ -32,9 +32,9 @@ Taiko 同样使用区块记录数据，那么首先就是用产生合法的 txLi
 
 **L2 上产生的 txList 最终会进入 L1，但是智能合约无法直接访问到这些数据，EIP-4844 升级后会添加 `blobHash` opcode。blob数据是一个小于 4096项的多项式参数**
 
-Anchor交易：L2上的每个块的第一笔交易都必须是 TaikoL2.anchor() 并且使用了合法的如入参和 gaslimit，并且调用地址是 taiko_l2 合约的地址，tx的发起者必须是 GOLDEN_TOUCH_ADDRESS，相关地址和签名数据定义在了 TaikoL2Signer [https://github.com/taikoxyz/taiko-mono/blob/db195da154e34c608f336dc906b5f89fdb5b326d/packages/protocol/contracts/L2/TaikoL2Signer.sol#L14]() 文件中，合约调用的txfee 是0。调用函数地址是 [https://github.com/taikoxyz/taiko-mono/blob/ee2688156733d49cbf43c5178211db95a7079b26/packages/protocol/contracts/L2/TaikoL2.sol#L118]()
+Anchor交易：L2上的每个块的第一笔交易都必须是 TaikoL2.anchor() 并且使用了合法的如入参和 gaslimit，并且调用地址是 taiko_l2 合约的地址，tx的发起者必须是 GOLDEN_TOUCH_ADDRESS，相关地址和签名数据定义在了 TaikoL2Signer [https://github.com/taikoxyz/taiko-mono/blob/db195da154e34c608f336dc906b5f89fdb5b326d/packages/protocol/contracts/L2/TaikoL2Signer.sol#L14](https://github.com/taikoxyz/taiko-mono/blob/db195da154e34c608f336dc906b5f89fdb5b326d/packages/protocol/contracts/L2/TaikoL2Signer.sol#L14) 文件中，合约调用的txfee 是0。调用函数地址是 [https://github.com/taikoxyz/taiko-mono/blob/ee2688156733d49cbf43c5178211db95a7079b26/packages/protocol/contracts/L2/TaikoL2.sol#L118](https://github.com/taikoxyz/taiko-mono/blob/ee2688156733d49cbf43c5178211db95a7079b26/packages/protocol/contracts/L2/TaikoL2.sol#L118)
 
-结合L2上anchor tx的信息可以构建出 BlockMetadata [https://github.com/taikoxyz/taiko-mono/blob/c0d18e86a7d1c3f62297288c1c55a89aaa4591d3/packages/protocol/contracts/L1/TaikoData.sol#L105]() BlockMetadata的内容将作为将来ZKP电路证明的输入参数
+结合L2上anchor tx的信息可以构建出 BlockMetadata [https://github.com/taikoxyz/taiko-mono/blob/c0d18e86a7d1c3f62297288c1c55a89aaa4591d3/packages/protocol/contracts/L1/TaikoData.sol#L105](https://github.com/taikoxyz/taiko-mono/blob/c0d18e86a7d1c3f62297288c1c55a89aaa4591d3/packages/protocol/contracts/L1/TaikoData.sol#L105) BlockMetadata的内容将作为将来ZKP电路证明的输入参数
 
 ```solidity
 struct BlockMetadata {
@@ -57,7 +57,7 @@ struct BlockMetadata {
 
 ## IProver 实现使用 ERC-(20/721/1155) 支付 Prover 的证明费用
 
-L2区块的证明由proposer 发起新区块的提议，prover通过zk相关计算为这个区块生成proof以获得佣金。这个过程prover需要和proposer事先签订一个off-chain 合约，由proposer发起，在限定的时间里prover如果能够给出合法证明的话，即向prover转移约定好的ERC-20或相关NFT代笔。作为prover需要实现 IProver 能力，[https://github.com/taikoxyz/taiko-mono/blob/437763a729bbf02cbf588559a20cc354f19b1677/packages/protocol/contracts/L1/IProver.sol#L13]()
+L2区块的证明由proposer 发起新区块的提议，prover通过zk相关计算为这个区块生成proof以获得佣金。这个过程prover需要和proposer事先签订一个off-chain 合约，由proposer发起，在限定的时间里prover如果能够给出合法证明的话，即向prover转移约定好的ERC-20或相关NFT代笔。作为prover需要实现 IProver 能力，[https://github.com/taikoxyz/taiko-mono/blob/437763a729bbf02cbf588559a20cc354f19b1677/packages/protocol/contracts/L1/IProver.sol#L13](https://github.com/taikoxyz/taiko-mono/blob/437763a729bbf02cbf588559a20cc354f19b1677/packages/protocol/contracts/L1/IProver.sol#L13)
 
 ```solidity
 // Import necessary libraries and interfaces
